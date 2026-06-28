@@ -9,10 +9,10 @@
     // Configuration & State
     // ============================================
     const CONFIG = {
-        API_BASE: 'https://api.openweathermap.org/data/2.5',
-        GEO_API: 'https://api.openweathermap.org/geo/1.0',
-        MAP_TILE_URL: 'https://tile.openweathermap.org/map',
-        ICON_URL: 'https://openweathermap.org/img/wn',
+        API_BASE: 'https://api.open-meteo.com/v1',
+        GEO_API: 'https://geocoding-api.open-meteo.com/v1',
+        MAP_TILE_URL: 'https://tile.openweathermap.org/map',  // Requires key - optional
+        ICON_URL: 'https://openweathermap.org/img/wn',  // Free weather icons
         DEFAULT_CITY: { name: 'London', lat: 51.5074, lon: -0.1278, country: 'GB' },
         CACHE_DURATION: 10 * 60 * 1000, // 10 minutes
         MAX_RECENT: 10,
@@ -35,7 +35,7 @@
             dailyForecastEnabled: true,
             hourlyEnabled: false,
             autoLocation: true,
-            apiKey: ''
+            apiKey: ''  // Optional - only for OpenWeather map tiles
         },
         isOnline: navigator.onLine,
         mapInstance: null,
@@ -396,16 +396,11 @@
     // API Functions
     // ============================================
     const api = {
-        getApiKey: () => {
-            return state.settings.apiKey || '';
-        },
+        // No API key needed - Open-Meteo is free and open
 
         searchCity: async (query) => {
-            const apiKey = api.getApiKey();
-            if (!apiKey) {
-                utils.showToast('Please add your OpenWeather API key in Settings');
-                return [];
-            }
+            const apiKey = state.settings.apiKey;
+            // Open-Meteo API requires no key
 
             try {
                 const response = await fetch(
@@ -415,21 +410,58 @@
                 return await response.json();
             } catch (error) {
                 console.error('Search error:', error);
-                utils.showToast('Search failed. Please check your API key.');
+                utils.showToast('Search failed. Please try again.');
                 return [];
             }
         },
 
         getCurrentWeather: async (lat, lon) => {
-            const apiKey = api.getApiKey();
-            if (!apiKey) return null;
-
             try {
                 const response = await fetch(
-                    `${CONFIG.API_BASE}/weather?lat=${lat}&lon=${lon}&appid=${apiKey}`
+                    `${CONFIG.API_BASE}/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,rain,showers,snowfall,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation_probability,rain,showers,snowfall,weather_code,cloud_cover,visibility,wind_speed_10m,wind_direction_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,uv_index_max,precipitation_sum,rain_sum,showers_sum,snowfall_sum,precipitation_hours,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant&timezone=auto&forecast_days=8`
                 );
                 if (!response.ok) throw new Error('Weather fetch failed');
-                return await response.json();
+                const data = await response.json();
+
+                // Convert Open-Meteo format to OpenWeather-compatible format
+                const current = data.current;
+                const daily = data.daily;
+
+                return {
+                    coord: { lat: lat, lon: lon },
+                    weather: [{
+                        id: current.weather_code,
+                        main: api.getWeatherMain(current.weather_code),
+                        description: api.getWeatherDescription(current.weather_code),
+                        icon: api.getWeatherIconCode(current.weather_code, current.is_day)
+                    }],
+                    main: {
+                        temp: current.temperature_2m + 273.15,
+                        feels_like: current.apparent_temperature + 273.15,
+                        temp_min: daily.temperature_2m_min[0] + 273.15,
+                        temp_max: daily.temperature_2m_max[0] + 273.15,
+                        pressure: current.surface_pressure,
+                        humidity: current.relative_humidity_2m,
+                        dew_point: current.temperature_2m - ((100 - current.relative_humidity_2m) / 5) + 273.15
+                    },
+                    visibility: (data.hourly?.visibility?.[0] || 10000),
+                    wind: {
+                        speed: current.wind_speed_10m / 3.6,
+                        deg: current.wind_direction_10m,
+                        gust: current.wind_gusts_10m / 3.6
+                    },
+                    clouds: { all: current.cloud_cover },
+                    rain: current.rain > 0 ? { '1h': current.rain } : undefined,
+                    snow: current.snowfall > 0 ? { '1h': current.snowfall } : undefined,
+                    dt: Math.floor(Date.now() / 1000),
+                    sys: {
+                        sunrise: new Date(daily.sunrise[0]).getTime() / 1000,
+                        sunset: new Date(daily.sunset[0]).getTime() / 1000
+                    },
+                    uvi: data.hourly?.uv_index?.[0] || 0,
+                    name: state.currentCity?.name || '',
+                    _openmeteo: data  // Store original data
+                };
             } catch (error) {
                 console.error('Weather error:', error);
                 return null;
@@ -437,31 +469,32 @@
         },
 
         getForecast: async (lat, lon) => {
-            const apiKey = api.getApiKey();
-            if (!apiKey) return null;
-
-            try {
-                const response = await fetch(
-                    `${CONFIG.API_BASE}/forecast?lat=${lat}&lon=${lon}&appid=${apiKey}`
-                );
-                if (!response.ok) throw new Error('Forecast fetch failed');
-                return await response.json();
-            } catch (error) {
-                console.error('Forecast error:', error);
-                return null;
-            }
+            // Forecast data is now included in the single Open-Meteo call
+            // This function is kept for compatibility but returns null
+            // The main loadCityWeather function handles the data directly
+            return null;
         },
 
         getAirQuality: async (lat, lon) => {
-            const apiKey = api.getApiKey();
-            if (!apiKey) return null;
-
             try {
                 const response = await fetch(
-                    `${CONFIG.API_BASE}/air_pollution?lat=${lat}&lon=${lon}&appid=${apiKey}`
+                    `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,sulphur_dioxide,ozone&timezone=auto`
                 );
                 if (!response.ok) throw new Error('AQI fetch failed');
-                return await response.json();
+                const data = await response.json();
+                return {
+                    list: [{
+                        main: { aqi: data.current?.us_aqi || 1 },
+                        components: {
+                            pm2_5: data.current?.pm2_5 || 0,
+                            pm10: data.current?.pm10 || 0,
+                            co: data.current?.carbon_monoxide || 0,
+                            no2: data.current?.nitrogen_dioxide || 0,
+                            so2: data.current?.sulphur_dioxide || 0,
+                            o3: data.current?.ozone || 0
+                        }
+                    }]
+                };
             } catch (error) {
                 console.error('AQI error:', error);
                 return null;
@@ -470,6 +503,58 @@
 
         getWeatherIconUrl: (icon) => {
             return `${CONFIG.ICON_URL}/${icon}@2x.png`;
+        },
+
+        getWeatherMain: (code) => {
+            const codes = {
+                0: 'Clear', 1: 'Clear', 2: 'Clouds', 3: 'Clouds',
+                45: 'Fog', 48: 'Fog',
+                51: 'Rain', 53: 'Rain', 55: 'Rain',
+                56: 'Rain', 57: 'Rain',
+                61: 'Rain', 63: 'Rain', 65: 'Rain',
+                66: 'Rain', 67: 'Rain',
+                71: 'Snow', 73: 'Snow', 75: 'Snow',
+                77: 'Snow',
+                80: 'Rain', 81: 'Rain', 82: 'Rain',
+                85: 'Snow', 86: 'Snow',
+                95: 'Thunderstorm', 96: 'Thunderstorm', 99: 'Thunderstorm'
+            };
+            return codes[code] || 'Clear';
+        },
+
+        getWeatherDescription: (code) => {
+            const codes = {
+                0: 'clear sky', 1: 'mainly clear', 2: 'partly cloudy', 3: 'overcast',
+                45: 'fog', 48: 'depositing rime fog',
+                51: 'light drizzle', 53: 'moderate drizzle', 55: 'dense drizzle',
+                56: 'light freezing drizzle', 57: 'dense freezing drizzle',
+                61: 'slight rain', 63: 'moderate rain', 65: 'heavy rain',
+                66: 'light freezing rain', 67: 'heavy freezing rain',
+                71: 'slight snow fall', 73: 'moderate snow fall', 75: 'heavy snow fall',
+                77: 'snow grains',
+                80: 'slight rain showers', 81: 'moderate rain showers', 82: 'violent rain showers',
+                85: 'slight snow showers', 86: 'heavy snow showers',
+                95: 'thunderstorm', 96: 'thunderstorm with slight hail', 99: 'thunderstorm with heavy hail'
+            };
+            return codes[code] || 'clear sky';
+        },
+
+        getWeatherIconCode: (code, isDay) => {
+            const dayNight = isDay ? 'd' : 'n';
+            const codes = {
+                0: '01', 1: '01', 2: '02', 3: '03',
+                45: '50', 48: '50',
+                51: '09', 53: '09', 55: '09',
+                56: '09', 57: '09',
+                61: '10', 63: '10', 65: '10',
+                66: '10', 67: '10',
+                71: '13', 73: '13', 75: '13',
+                77: '13',
+                80: '09', 81: '09', 82: '09',
+                85: '13', 86: '13',
+                95: '11', 96: '11', 99: '11'
+            };
+            return (codes[code] || '01') + dayNight;
         }
     };
 
@@ -534,6 +619,67 @@
                 windSpeed: (day.windSpeed.reduce((a, b) => a + b, 0) / day.windSpeed.length).toFixed(1),
                 pressure: Math.round(day.pressure.reduce((a, b) => a + b, 0) / day.pressure.length)
             }));
+        },
+
+        processHourlyOpenMeteo: (hourly) => {
+            if (!hourly || !hourly.time) return [];
+
+            const result = [];
+            const count = Math.min(hourly.time.length, 24);
+
+            for (let i = 0; i < count; i++) {
+                const isDay = hourly.is_day ? hourly.is_day[i] : 1;
+                const code = hourly.weather_code ? hourly.weather_code[i] : 0;
+
+                result.push({
+                    time: new Date(hourly.time[i]).getTime() / 1000,
+                    temp: hourly.temperature_2m[i] + 273.15,
+                    feelsLike: (hourly.apparent_temperature ? hourly.apparent_temperature[i] : hourly.temperature_2m[i]) + 273.15,
+                    humidity: hourly.relative_humidity_2m ? hourly.relative_humidity_2m[i] : 50,
+                    windSpeed: hourly.wind_speed_10m ? hourly.wind_speed_10m[i] / 3.6 : 0,
+                    windDeg: hourly.wind_direction_10m ? hourly.wind_direction_10m[i] : 0,
+                    pop: hourly.precipitation_probability ? hourly.precipitation_probability[i] / 100 : 0,
+                    weather: {
+                        id: code,
+                        main: api.getWeatherMain(code),
+                        description: api.getWeatherDescription(code),
+                        icon: api.getWeatherIconCode(code, isDay)
+                    },
+                    visibility: hourly.visibility ? hourly.visibility[i] : 10000
+                });
+            }
+
+            return result;
+        },
+
+        processDailyOpenMeteo: (daily) => {
+            if (!daily || !daily.time) return [];
+
+            const result = [];
+            const count = Math.min(daily.time.length, 7);
+
+            for (let i = 0; i < count; i++) {
+                const code = daily.weather_code ? daily.weather_code[i] : 0;
+
+                result.push({
+                    dt: new Date(daily.time[i]).getTime() / 1000,
+                    tempMin: daily.temperature_2m_min[i] + 273.15,
+                    tempMax: daily.temperature_2m_max[i] + 273.15,
+                    tempAvg: ((daily.temperature_2m_min[i] + daily.temperature_2m_max[i]) / 2) + 273.15,
+                    weather: {
+                        id: code,
+                        main: api.getWeatherMain(code),
+                        description: api.getWeatherDescription(code),
+                        icon: api.getWeatherIconCode(code, 1)
+                    },
+                    pop: daily.precipitation_probability_max ? daily.precipitation_probability_max[i] / 100 : 0,
+                    humidity: 60,
+                    windSpeed: daily.wind_speed_10m_max ? (daily.wind_speed_10m_max[i] / 3.6).toFixed(1) : '0',
+                    pressure: 1013
+                });
+            }
+
+            return result;
         }
     };
 
@@ -979,8 +1125,12 @@
     api.setMapLayer = (layerType) => {
         if (!state.mapInstance) return;
 
-        const apiKey = api.getApiKey();
-        if (!apiKey) return;
+        // Map tiles require OpenWeather API key - skip if not available
+        const apiKey = state.settings.apiKey;
+        if (!apiKey) {
+            console.log('Map tiles require OpenWeather API key');
+            return;
+        }
 
         if (state.mapLayer) {
             state.mapInstance.removeLayer(state.mapLayer);
@@ -1030,22 +1180,16 @@
             // Check online status
             app.updateOnlineStatus();
 
-            // Check for API key
-            if (!api.getApiKey()) {
-                utils.showToast('Please add your OpenWeather API key in Settings');
-                // Load default demo data
-                app.loadDemoData();
+            // Load weather data automatically (no API key needed with Open-Meteo)
+            // Try to get location first
+            if (state.settings.autoLocation && navigator.geolocation) {
+                app.getCurrentLocation();
             } else {
-                // Try to get location
-                if (state.settings.autoLocation) {
-                    app.getCurrentLocation();
+                const savedCity = utils.storage.get('wp_current_city');
+                if (savedCity) {
+                    app.loadCityWeather(savedCity);
                 } else {
-                    const savedCity = utils.storage.get('wp_current_city');
-                    if (savedCity) {
-                        app.loadCityWeather(savedCity);
-                    } else {
-                        app.loadCityWeather(CONFIG.DEFAULT_CITY);
-                    }
+                    app.loadCityWeather(CONFIG.DEFAULT_CITY);
                 }
             }
 
@@ -1167,11 +1311,11 @@
                 });
             });
 
-            // API Key
+            // Optional: OpenWeather API Key (for map tiles only)
             $('#api-key-input').addEventListener('change', (e) => {
                 state.settings.apiKey = e.target.value.trim();
                 app.saveSettings();
-                utils.showToast('API key saved');
+                utils.showToast('Settings saved');
             });
 
             // Clear cache
@@ -1302,41 +1446,34 @@
                 async (position) => {
                     const { latitude, longitude } = position.coords;
 
-                    // Reverse geocode
-                    const apiKey = api.getApiKey();
-                    if (apiKey) {
-                        try {
-                            const response = await fetch(
-                                `${CONFIG.GEO_API}/reverse?lat=${latitude}&lon=${longitude}&limit=1&appid=${apiKey}`
-                            );
-                            const data = await response.json();
-                            if (data && data[0]) {
-                                const city = {
-                                    name: data[0].name,
-                                    lat: latitude,
-                                    lon: longitude,
-                                    country: data[0].country
-                                };
-                                app.loadCityWeather(city);
-                            } else {
-                                app.loadCityWeather({
-                                    name: 'Current Location',
-                                    lat: latitude,
-                                    lon: longitude,
-                                    country: ''
-                                });
-                            }
-                        } catch (e) {
-                            app.loadCityWeather({
-                                name: 'Current Location',
-                                lat: latitude,
-                                lon: longitude,
-                                country: ''
-                            });
+                    // Use Open-Meteo geocoding API (no key needed)
+                    try {
+                        const geoResponse = await fetch(
+                            `https://geocoding-api.open-meteo.com/v1/search?name=${latitude},${longitude}&count=1`
+                        );
+                        const geoData = await geoResponse.json();
+                        let cityName = 'Current Location';
+                        let countryCode = '';
+
+                        if (geoData.results && geoData.results[0]) {
+                            cityName = geoData.results[0].name;
+                            countryCode = geoData.results[0].country_code || '';
                         }
-                    } else {
-                        utils.showLoading(false);
-                        utils.showToast('Please add API key in Settings');
+
+                        const city = {
+                            name: cityName,
+                            lat: latitude,
+                            lon: longitude,
+                            country: countryCode
+                        };
+                        app.loadCityWeather(city);
+                    } catch (e) {
+                        app.loadCityWeather({
+                            name: 'Current Location',
+                            lat: latitude,
+                            lon: longitude,
+                            country: ''
+                        });
                     }
                 },
                 (error) => {
@@ -1364,19 +1501,12 @@
             state.currentCity = city;
             utils.storage.set('wp_current_city', city);
 
-            const apiKey = api.getApiKey();
-            if (!apiKey) {
-                app.loadDemoData();
-                return;
-            }
-
             utils.showLoading(true);
 
             try {
-                // Fetch all data in parallel
-                const [currentData, forecastData, aqiData] = await Promise.all([
+                // Fetch all data in parallel using Open-Meteo (no API key needed)
+                const [currentData, aqiData] = await Promise.all([
                     api.getCurrentWeather(city.lat, city.lon),
-                    api.getForecast(city.lat, city.lon),
                     api.getAirQuality(city.lat, city.lon)
                 ]);
 
@@ -1388,9 +1518,11 @@
 
                 state.weatherData = currentData;
 
-                if (forecastData) {
-                    state.hourlyData = dataProcessor.processHourly(forecastData);
-                    state.dailyData = dataProcessor.processDaily(forecastData);
+                // Process hourly and daily from Open-Meteo data
+                const omData = currentData._openmeteo;
+                if (omData) {
+                    state.hourlyData = dataProcessor.processHourlyOpenMeteo(omData.hourly);
+                    state.dailyData = dataProcessor.processDailyOpenMeteo(omData.daily);
                 }
 
                 // Render UI
@@ -1432,7 +1564,7 @@
         },
 
         loadDemoData: () => {
-            // Demo data for when no API key is available
+            // Fallback demo data if API fails
             const demoCity = { name: 'Demo City', lat: 0, lon: 0, country: 'XX' };
             state.currentCity = demoCity;
 
