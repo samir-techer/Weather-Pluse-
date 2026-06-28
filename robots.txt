@@ -8,7 +8,7 @@ Allow: /assets/js/
 
 Disallow: /offline.html
 
-Sitemap: https://your-username.github.io/WeatherPulse/sitemap.xml
+Sitemap: https://samir-techer.github.io/WeatherPulse/sitemap.xml
 
 # Weather Pluse+ - Progressive Web App
 # Forecast. Alert. Stay Ahead.
