@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /assets/
+Allow: /assets/icons/
+Allow: /assets/css/
+Allow: /assets/js/
+
+Disallow: /offline.html
+
+Sitemap: https://your-username.github.io/WeatherPulse/sitemap.xml
+
+# Weather Pluse+ - Progressive Web App
+# Forecast. Alert. Stay Ahead.

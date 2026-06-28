@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="msapplication-TileColor" content="#0f172a">
+    <meta name="description" content="Weather Pluse+ - Forecast. Alert. Stay Ahead. Premium weather app with real-time forecasts, alerts, and interactive maps.">
+    <meta name="keywords" content="weather, forecast, radar, alerts, temperature, rain, snow, wind">
+    <meta name="author" content="Weather Pluse+">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Weather Pluse+">
+
+    <title>Weather Pluse+ | Forecast. Alert. Stay Ahead.</title>
+
+    <!-- Preconnect -->
+    <link rel="preconnect" href="https://api.openweathermap.org">
+    <link rel="preconnect" href="https://tile.openweathermap.org">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-touch-icon.png">
+    <link rel="mask-icon" href="assets/icons/icon-192.png" color="#3b82f6">
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="assets/css/style.css">
+
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+
+    <!-- Browser Config -->
+    <meta name="msapplication-config" content="browserconfig.xml">
+</head>
+<body>
+    <!-- App Container -->
+    <div id="app" class="app">
+
+        <!-- Background Animation Layer -->
+        <div id="weather-bg" class="weather-bg">
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+            <div id="particles-container" class="particles-container"></div>
+        </div>
+
+        <!-- Splash Screen -->
+        <div id="splash-screen" class="splash-screen">
+            <div class="splash-content">
+                <div class="splash-logo">
+                    <img src="assets/icons/icon-192.png" alt="Weather Pluse+" class="splash-logo-img">
+                </div>
+                <h1 class="splash-title">Weather Pluse+</h1>
+                <p class="splash-tagline">Forecast. Alert. Stay Ahead.</p>
+                <div class="splash-loader">
+                    <div class="splash-loader-bar"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Install Prompt -->
+        <div id="install-prompt" class="install-prompt hidden">
+            <div class="install-content">
+                <img src="assets/icons/icon-72.png" alt="Weather Pluse+" class="install-icon">
+                <div class="install-text">
+                    <h3>Install Weather Pluse+</h3>
+                    <p>Add to your home screen for quick access</p>
+                </div>
+                <button id="install-btn" class="install-btn">Install</button>
+                <button id="install-dismiss" class="install-dismiss" aria-label="Dismiss">&times;</button>
+            </div>
+        </div>
+
+        <!-- Offline Banner -->
+        <div id="offline-banner" class="offline-banner hidden">
+            <span class="offline-icon">&#9888;</span>
+            <span>You are offline. Showing cached data.</span>
+        </div>
+
+        <!-- Header -->
+        <header class="app-header">
+            <button id="menu-btn" class="header-btn" aria-label="Menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div class="header-location">
+                <h2 id="header-city" class="header-city">--</h2>
+                <span id="header-country" class="header-country">--</span>
+            </div>
+            <button id="search-btn" class="header-btn" aria-label="Search">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            </button>
+        </header>
+
+        <!-- Side Menu -->
+        <nav id="side-menu" class="side-menu">
+            <div class="side-menu-overlay"></div>
+            <div class="side-menu-panel">
+                <div class="side-menu-header">
+                    <img src="assets/icons/icon-72.png" alt="Weather Pluse+" class="side-menu-logo">
+                    <h3>Weather Pluse+</h3>
+                    <button id="close-menu" class="close-menu" aria-label="Close menu">&times;</button>
+                </div>
+                <div class="side-menu-body">
+                    <ul class="side-menu-list">
+                        <li><a href="#home" class="side-menu-link active" data-page="home">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                            Home
+                        </a></li>
+                        <li><a href="#favorites" class="side-menu-link" data-page="favorites">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            Favorites
+                        </a></li>
+                        <li><a href="#maps" class="side-menu-link" data-page="maps">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 21 18 21 2 16 6 8 2 1 6"></polygon><line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line></svg>
+                            Weather Map
+                        </a></li>
+                        <li><a href="#settings" class="side-menu-link" data-page="settings">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9h.09a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            Settings
+                        </a></li>
+                    </ul>
+                    <div class="side-menu-divider"></div>
+                    <div class="side-menu-info">
+                        <p>Weather Pluse+ v2.0</p>
+                        <p>Powered by OpenWeather</p>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Search Overlay -->
+        <div id="search-overlay" class="search-overlay hidden">
+            <div class="search-container">
+                <div class="search-header">
+                    <button id="close-search" class="close-search" aria-label="Close search">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    </button>
+                    <div class="search-input-wrapper">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="search-input" placeholder="Search city..." autocomplete="off" aria-label="Search city">
+                        <button id="clear-search" class="clear-search hidden" aria-label="Clear search">&times;</button>
+                    </div>
+                    <button id="locate-btn" class="locate-btn" aria-label="Use my location">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle><line x1="12" y1="2" x2="12" y2="4"></line><line x1="12" y1="20" x2="12" y2="22"></line><line x1="2" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="22" y2="12"></line></svg>
+                    </button>
+                </div>
+                <div class="search-body">
+                    <div id="search-results" class="search-results"></div>
+                    <div id="recent-searches" class="recent-searches">
+                        <h4 class="section-title">Recent Searches</h4>
+                        <div id="recent-list" class="recent-list"></div>
+                    </div>
+                    <div id="favorites-list-section" class="favorites-list-section">
+                        <h4 class="section-title">Favorites</h4>
+                        <div id="favorites-list-search" class="favorites-list-search"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <main id="main-content" class="main-content">
+
+            <!-- Home Page -->
+            <section id="page-home" class="page active">
+
+                <!-- Current Weather Card -->
+                <div class="card current-weather-card">
+                    <div class="current-weather-main">
+                        <div class="current-weather-info">
+                            <div id="current-time" class="current-time">--:--</div>
+                            <div id="current-date" class="current-date">--</div>
+                            <div id="current-temp" class="current-temp">--&deg;</div>
+                            <div id="current-feels-like" class="current-feels-like">Feels like --&deg;</div>
+                            <div id="current-condition" class="current-condition">--</div>
+                        </div>
+                        <div class="current-weather-icon-container">
+                            <div id="weather-animation" class="weather-animation"></div>
+                            <img id="current-weather-icon" src="" alt="Weather icon" class="current-weather-icon hidden">
+                        </div>
+                    </div>
+                    <div class="current-weather-details">
+                        <div class="detail-item">
+                            <span class="detail-label">High</span>
+                            <span id="current-high" class="detail-value">--&deg;</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Low</span>
+                            <span id="current-low" class="detail-value">--&deg;</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">Rain</span>
+                            <span id="current-rain" class="detail-value">--%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hourly Forecast -->
+                <div class="card hourly-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            24-Hour Forecast
+                        </h3>
+                    </div>
+                    <div class="hourly-chart-container">
+                        <canvas id="hourly-chart" class="hourly-chart"></canvas>
+                    </div>
+                    <div id="hourly-list" class="hourly-list"></div>
+                </div>
+
+                <!-- 7-Day Forecast -->
+                <div class="card forecast-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                            7-Day Forecast
+                        </h3>
+                    </div>
+                    <div id="daily-list" class="daily-list"></div>
+                </div>
+
+                <!-- Extra Details Grid -->
+                <div class="details-grid">
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Humidity</span>
+                            <span id="detail-humidity" class="detail-card-value">--%</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Pressure</span>
+                            <span id="detail-pressure" class="detail-card-value">-- hPa</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Visibility</span>
+                            <span id="detail-visibility" class="detail-card-value">-- km</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Clouds</span>
+                            <span id="detail-clouds" class="detail-card-value">--%</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"></path></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Wind Speed</span>
+                            <span id="detail-wind-speed" class="detail-card-value">--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Wind Dir</span>
+                            <span id="detail-wind-dir" class="detail-card-value">--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">UV Index</span>
+                            <span id="detail-uv" class="detail-card-value">--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 15a4 4 0 0 0 4 4h9a5 5 0 0 0 5-5 5 5 0 0 0-5-5 4 4 0 0 1-4-4 4 4 0 0 1 4-4 5 5 0 0 0 5 5"></path></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Air Quality</span>
+                            <span id="detail-aqi" class="detail-card-value">--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="9" x2="12" y2="2"></line><line x1="4.22" y1="10.22" x2="5.64" y2="11.64"></line><line x1="1" y1="18" x2="3" y2="18"></line><line x1="21" y1="18" x2="23" y2="18"></line><line x1="18.36" y1="11.64" x2="19.78" y2="10.22"></line><line x1="23" y1="22" x2="1" y2="22"></line><polyline points="16 5 12 9 8 5"></polyline></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Sunrise</span>
+                            <span id="detail-sunrise" class="detail-card-value">--:--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 18a5 5 0 0 0-10 0"></path><line x1="12" y1="1" x2="12" y2="7"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="1" y1="14" x2="3" y2="14"></line><line x1="21" y1="14" x2="23" y2="14"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line><line x1="23" y1="22" x2="1" y2="22"></line><polyline points="8 6 12 2 16 6"></polyline></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Sunset</span>
+                            <span id="detail-sunset" class="detail-card-value">--:--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Moon Phase</span>
+                            <span id="detail-moon" class="detail-card-value">--</span>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-card-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path></svg>
+                        </div>
+                        <div class="detail-card-info">
+                            <span class="detail-card-label">Dew Point</span>
+                            <span id="detail-dew" class="detail-card-value">--&deg;</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts Section -->
+                <div id="alerts-section" class="card alerts-card hidden">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            Weather Alerts
+                        </h3>
+                    </div>
+                    <div id="alerts-list" class="alerts-list"></div>
+                </div>
+
+            </section>
+
+            <!-- Maps Page -->
+            <section id="page-maps" class="page">
+                <div class="card map-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 21 18 21 2 16 6 8 2 1 6"></polygon></svg>
+                            Interactive Weather Map
+                        </h3>
+                    </div>
+                    <div class="map-controls">
+                        <button class="map-layer-btn active" data-layer="temp">Temperature</button>
+                        <button class="map-layer-btn" data-layer="precipitation">Rain</button>
+                        <button class="map-layer-btn" data-layer="clouds">Clouds</button>
+                        <button class="map-layer-btn" data-layer="wind">Wind</button>
+                    </div>
+                    <div id="weather-map" class="weather-map"></div>
+                </div>
+            </section>
+
+            <!-- Favorites Page -->
+            <section id="page-favorites" class="page">
+                <div class="card favorites-card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            Your Favorites
+                        </h3>
+                    </div>
+                    <div id="favorites-container" class="favorites-container">
+                        <div class="empty-state">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            <p>No favorites yet</p>
+                            <p class="empty-sub">Search for a city and tap the star to add it</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Page -->
+            <section id="page-settings" class="page">
+                <div class="settings-container">
+
+                    <div class="card settings-card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9h.09a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                                Settings
+                            </h3>
+                        </div>
+
+                        <div class="settings-group">
+                            <h4 class="settings-group-title">Units</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Temperature</span>
+                                    <span class="setting-desc">Choose your preferred temperature unit</span>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="unit-toggle active" data-unit="celsius" data-type="temp">&deg;C</button>
+                                    <button class="unit-toggle" data-unit="fahrenheit" data-type="temp">&deg;F</button>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Wind Speed</span>
+                                    <span class="setting-desc">Choose your preferred wind speed unit</span>
+                                </div>
+                                <div class="setting-control">
+                                    <button class="unit-toggle active" data-unit="ms" data-type="wind">m/s</button>
+                                    <button class="unit-toggle" data-unit="kmh" data-type="wind">km/h</button>
+                                    <button class="unit-toggle" data-unit="mph" data-type="wind">mph</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h4 class="settings-group-title">Appearance</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Dark Mode</span>
+                                    <span class="setting-desc">Toggle between light and dark theme</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="dark-mode-toggle" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Auto Dark Mode</span>
+                                    <span class="setting-desc">Automatically switch based on time</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-dark-toggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h4 class="settings-group-title">Notifications</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Weather Alerts</span>
+                                    <span class="setting-desc">Get notified about severe weather</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="alerts-toggle" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Daily Forecast</span>
+                                    <span class="setting-desc">Morning and evening forecast updates</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="daily-forecast-toggle" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Hourly Updates</span>
+                                    <span class="setting-desc">Hourly weather reminders</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="hourly-toggle">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h4 class="settings-group-title">Location</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Auto Location</span>
+                                    <span class="setting-desc">Automatically detect your location</span>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="auto-location-toggle" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h4 class="settings-group-title">Data</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">OpenWeather API Key (Optional)</span>
+                                    <span class="setting-desc">For weather map tiles only. Weather data works without a key!</span>
+                                </div>
+                                <div class="setting-control">
+                                    <input type="text" id="api-key-input" class="api-key-input" placeholder="Optional - for map tiles only">
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <span class="setting-label">Clear Cache</span>
+                                    <span class="setting-desc">Remove all cached weather data</span>
+                                </div>
+                                <div class="setting-control">
+                                    <button id="clear-cache-btn" class="danger-btn">Clear</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h4 class="settings-group-title">About</h4>
+                            <div class="about-info">
+                                <img src="assets/icons/icon-96.png" alt="Weather Pluse+" class="about-logo">
+                                <h4>Weather Pluse+</h4>
+                                <p>Version 2.0.0</p>
+                                <p>Forecast. Alert. Stay Ahead.</p>
+                                <p class="about-credit">Powered by OpenWeather API</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="#home" class="nav-item active" data-page="home">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <span>Home</span>
+            </a>
+            <a href="#maps" class="nav-item" data-page="maps">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 21 18 21 2 16 6 8 2 1 6"></polygon></svg>
+                <span>Map</span>
+            </a>
+            <a href="#favorites" class="nav-item" data-page="favorites">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>Favorites</span>
+            </a>
+            <a href="#settings" class="nav-item" data-page="settings">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9h.09a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">Loading weather data...</p>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast hidden">
+            <span id="toast-message"></span>
+        </div>
+
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="assets/js/script.js" defer></script>
+    <script src="assets/js/firebase-config.js" defer></script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('SW registered:', reg.scope))
+                    .catch(err => console.log('SW registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
